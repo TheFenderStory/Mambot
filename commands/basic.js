@@ -20,7 +20,7 @@ exports.commands = {
 	
 	suspect: function () {
 		if (!this.isRanked('+')) return false;
-		this.reply(this.trad('suspect') + " (http://www.smogon.com/forums/threads/lc-suspect-beez-in-the-trap.3547829/)", 'info');
+		this.reply(this.trad('suspect') + " (http://www.smogon.com/forums/threads/lc-suspect-diglett.3566865/)", 'info');
 	},
 	
 	viability: function () {
