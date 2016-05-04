@@ -1,12 +1,17 @@
 /*
 	Basic Commands
 */
+var repeatTimer = null;
 
 function setPermission(room, perm, rank) {
 	if (!Settings.settings.commands) Settings.settings.commands = {};
 	if (!Settings.settings.commands[room]) Settings.settings.commands[room] = {};
 	Settings.settings.commands[room][perm] = rank;
 	Settings.save();
+}
+
+function repeat(room) {
+	Bot.say(room, 'hi friends!');
 }
 
 Settings.addPermissions(['say']);
@@ -129,6 +134,16 @@ exports.commands = {
 		if (!arg) return;
 		if (!this.can('say')) return;
 		this.reply(Tools.stripCommands(arg));
+	},
+	
+	repeat: function (arg, by, room, cmd) {
+		if (!this.isRanked('#')) return false;
+		var lang = toId(arg);
+		if (lang === 'on') {
+			var repeatTimer = setInterval(repeat(room), 180000);
+		} else if (lang === 'off') {
+			clearInterval(repeatTimer);
+		}
 	},
 
 	lang: 'language',
