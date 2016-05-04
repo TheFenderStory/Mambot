@@ -144,6 +144,7 @@ exports.commands = {
 		} else if (lang === 'off') {
 			clearInterval(repeatTimer);
 		}
+		Bot.say(room, "Now on repeat mode");
 	},
 
 	lang: 'language',
