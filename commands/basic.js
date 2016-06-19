@@ -222,7 +222,7 @@ exports.commands = {
        		'is that a keg in your pants? Because I’d love to tap that ass'
         	];
         var line = Math.floor(Math.random() * lines.length);
-        this.reply('Hey' + target + ', ' + line);
+        this.reply('Hey' + target + ', ' + lines[line]);
     },
 
 	settings: 'set',
