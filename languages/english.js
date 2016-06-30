@@ -7,7 +7,7 @@ exports.translations = {
 			'about': 'I\'m a **Pokemon Showdown Bot** written in JavaScript for Node. By: Ecuacion'
 		},
 		suspect: {
-			'suspect': 'Little Cup is currently suspecting Diglett! Check it out here:'
+			'suspect': 'Little Cup is currently suspecting Drifloon! Check it out here:'
 		},
 		viability: {
 			'viability': 'Little Cup Viability Rankings:'
