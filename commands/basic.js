@@ -25,7 +25,7 @@ exports.commands = {
 	
 	suspect: function () {
 		if (!this.isRanked('+')) return false;
-		this.reply(this.trad('suspect') + " (http://www.smogon.com/forums/threads/lc-suspect-diglett.3566865/)", 'info');
+		this.reply(this.trad('suspect') + " (http://www.smogon.com/forums/threads/lc-suspect-black-balloon.3575912/)", 'info');
 	},
 	
 	viability: function () {
