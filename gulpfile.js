@@ -13,9 +13,8 @@ var jshintStylish = require('jshint-stylish');
 
 var globals = {};
 var globalList = [
-	'Bot', 'CommandParser', 'Config', 'DataDownloader', 'Features', 'Formats', 'Settings', 'Tools',
-	'colors', 'sys', 'fs', 'path', 'PSClient',
-	'reloadConfig', 'reloadFeatures',
+	'Bot', 'AppOptions', 'CommandParser', 'Config', 'DataDownloader', 'Features', 'Formats', 'Settings', 'Tools',
+	'colors', 'sys', 'fs', 'path', 'PSClient', 'reloadFeatures', 'SecurityLog',
 	'toId', 'toRoomid', 'ok', 'info', 'error', 'errlog', 'debug', 'cmdr', 'recv', 'sent', 'monitor'
 ];
 globalList.forEach(function (identifier) {globals[identifier] = false;});
@@ -43,7 +42,9 @@ function lint (jsHintOptions, jscsOptions) {
 	}
 	return lazypipe()
 		.pipe(cachedJsHint)
-		.pipe(jscs.bind(jscs, jscsOptions))();
+		.pipe(jscs.bind(jscs, {configPath: jscsOptions}))
+		.pipe(jscs.reporter.bind(jscs.reporter))
+		.pipe(jscs.reporter.bind(jscs.reporter, 'fail'))();
 }
 
 var jsHintOptions = {};
@@ -66,67 +67,36 @@ jsHintOptions.base = {
 	"globals": globals
 };
 
-var jscsOptions = {};
-jscsOptions.base = {
-	"preset": "yandex",
-
-	"requireCurlyBraces": null,
-
-	"maximumLineLength": null,
-	"validateIndentation": '\t',
-	"validateQuoteMarks": null,
-	"disallowYodaConditions": null,
-	"disallowQuotedKeysInObjects": null,
-	"requireDotNotation": null,
-
-	"disallowMultipleVarDecl": null,
-	"disallowImplicitTypeConversion": null,
-	"requireSpaceAfterLineComment": null,
-	"validateJSDoc": null,
-
-	"disallowMixedSpacesAndTabs": "smart",
-	"requireSpaceAfterKeywords": true,
-
-	"disallowSpacesInFunctionDeclaration": null,
-	"requireSpacesInFunctionDeclaration": {
-		"beforeOpeningCurlyBrace": true
-	},
-	"requireSpacesInAnonymousFunctionExpression": {
-		"beforeOpeningRoundBrace": true,
-		"beforeOpeningCurlyBrace": true
-	},
-	"disallowSpacesInNamedFunctionExpression": null,
-	"requireSpacesInNamedFunctionExpression": {
-		"beforeOpeningCurlyBrace": true
-	},
-	"validateParameterSeparator": ", ",
-
-	"requireBlocksOnNewline": 1,
-	"disallowPaddingNewlinesInBlocks": true,
-
-	"requireOperatorBeforeLineBreak": true,
-	"disallowTrailingComma": true,
-
-	"requireCapitalizedConstructors": true,
-
-	"validateLineBreaks": require('os').EOL === '\n' ? 'LF' : null,
-	"disallowMultipleLineBreaks": null,
-
-	"esnext": true
-};
-jscsOptions.config = util._extend(util._extend({}, jscsOptions.base), {
-	"disallowTrailingComma": null
+jsHintOptions.test = util._extend(util._extend({}, jsHintOptions.base), {
+	"mocha": true
 });
+
+jsHintOptions.externalScripts = util._extend(util._extend({}, jsHintOptions.base), {
+	"globals": {}
+});
+
+var jscsOptions = {};
+jscsOptions.base = "./test/.jscsrc";
+jscsOptions.config = "./test/.jscsrc";
+
 
 var lintData = [
 	{
-		dirs: ['./command-parser.js', './data-downloader.js', './index.js', './settings.js', './tools.js', './commands/*.js', './features/*/*.js', './languages/*.js'],
+		dirs: ['./command-parser.js', './data-downloader.js', './index.js', './security-log.js', './settings.js', 'showdown-client.js', './tools.js', './commands/*.js', './features/*/*.js', './languages/*/*.js', './features/battle/battle-ai/*.js', './features/battle/battle-ai/modules/*.js'],
 		jsHint: jsHintOptions.base,
 		jscs: jscsOptions.base
 	}, {
-		dirs: ['./config-example.js'],
+		dirs: ['./config-example.js', './data/*-example.js', './data/typechart.js'],
 		jsHint: jsHintOptions.base,
 		jscs: jscsOptions.config
+	}, {
+		dirs: ['./test/*.js', './testfiles/*.js'],
+		jsHint: jsHintOptions.test,
+		jscs: jscsOptions.config
+	}, {
+		dirs: ['./getserver.js', './bot-setup.js'],
+		jsHint: jsHintOptions.externalScripts,
+		jscs: jscsOptions.base
 	}
 ];
 

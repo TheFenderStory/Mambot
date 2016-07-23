@@ -5,9 +5,10 @@
 exports.id = 'tours';
 exports.desc = 'A tool to ease tournaments creation';
 
-
 var tournaments = exports.tournaments = {};
 var tourData = exports.tourData = {};
+
+var Leaderboards = exports.Leaderboards = require('./leaderboards.js');
 
 var Tournament = exports.Tournament = (function () {
 	function Tournament (room, details) {
@@ -21,6 +22,7 @@ var Tournament = exports.Tournament = (function () {
 		this.room = room || 'lobby';
 		this.timeToStart = details.timeToStart || 30 * 1000;
 		this.autodq = details.autodq || false;
+		this.scoutProtect = details.scoutProtect || false;
 	}
 
 	Tournament.prototype.createTour = function () {
@@ -29,6 +31,7 @@ var Tournament = exports.Tournament = (function () {
 	Tournament.prototype.startTimeout = function () {
 		if (!this.timeToStart) return;
 		this.signups = true;
+		if (this.scoutProtect) Bot.say(this.room, '/tournament setscouting disallow');
 		this.startTimer = setTimeout(function () {
 			this.startTour();
 			this.started = true;
@@ -71,6 +74,7 @@ exports.init = function () {
 
 exports.parse = function (room, message, isIntro, spl) {
 	if (spl[0] !== 'tournament') return;
+	if (isIntro) return;
 	if (!tourData[room]) tourData[room] = {};
 	switch (spl[1]) {
 		case 'create':
@@ -109,6 +113,16 @@ exports.parse = function (room, message, isIntro, spl) {
 			}
 			break;
 		case 'end':
+			try {
+				var data = JSON.parse(spl[2]);
+				for (var i in data)
+					tourData[room][i] = data[i];
+			} catch (e){}
+			Leaderboards.onTournamentEnd(room, tourData[room]);
+			delete tourData[room];
+			if (tournaments[room] && tournaments[room].startTimer) clearTimeout(tournaments[room].startTimer);
+			if (tournaments[room]) delete tournaments[room];
+			break;
 		case 'forceend':
 			delete tourData[room];
 			if (tournaments[room] && tournaments[room].startTimer) clearTimeout(tournaments[room].startTimer);

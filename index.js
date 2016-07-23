@@ -11,7 +11,7 @@ try {
 	global.sys = require('sys');
 	global.fs = require('fs');
 	global.path = require('path');
-	global.PSClient = require('node-ps-client');
+	global.PSClient = require('./showdown-client.js');
 } catch (e) {
 	console.log(e.stack);
 	console.log("ERROR: missing dependencies, try 'npm install'");
@@ -25,21 +25,46 @@ console.log((
 ).yellow);
 
 global.Tools = require('./tools.js');
+var cmdArgs = process.argv.slice(2);
+if (!global.AppOptions) global.AppOptions = Tools.paseArguments(cmdArgs);
 
-if (!fs.existsSync('./config.js')) {
-	console.log("config.js does not exist - creating one with default settings...");
-	fs.writeFileSync('./config.js', fs.readFileSync('./config-example.js'));
+if (AppOptions.help) {
+	console.log(
+		"Options:\n" +
+		"   [-h/-help] - Gives you this guide\n" +
+		"   [-c/-config] config-file - Set a custom configuratioon file\n" +
+		"   [-dt/-data] data-dir - Set a custom data directory\n" +
+		"   [-p/-production] - Production mode (recommended)\n" +
+		"   [-m/-monitor] - Monitor mode\n" +
+		"   [-d/-debug] - Debug mode\n" +
+		"   [-t/-test] - Test Mode\n"
+	);
+	process.exit();
 }
 
-global.Config = require('./config.js');
+if (!AppOptions.config) AppOptions.config = './config.js';
+if (!AppOptions.data) AppOptions.data = './data/';
+if (AppOptions.data.charAt(AppOptions.data.length - 1) !== '/') AppOptions.data += '/';
+
+if (!fs.existsSync(AppOptions.data)) {
+	console.log(AppOptions.data + " does not exist - creating data directory...");
+	fs.mkdirSync(AppOptions.data);
+}
+
+if (!fs.existsSync(AppOptions.data + "_temp/")) {
+	console.log(AppOptions.data + "_temp/" + " does not exist - creating temp directory...");
+	fs.mkdirSync(AppOptions.data + "_temp/");
+}
+
+if (!fs.existsSync(AppOptions.config)) {
+	console.log(AppOptions.config + " does not exist - creating one with default settings...");
+	fs.writeFileSync(AppOptions.config, fs.readFileSync('./config-example.js'));
+}
+
+global.Config = require(AppOptions.config);
 Tools.checkConfig();
 
-global.reloadConfig = function () {
-	Tools.uncacheTree('./config.js');
-	global.Config = require('./config.js');
-	Tools.checkConfig();
-	CommandParser.reloadTokens();
-};
+if (AppOptions.debugmode) info((['Debug', 'Monitor', 'Production'])[AppOptions.debugmode - 1] + ' mode');
 
 info('Loading globals');
 
@@ -53,36 +78,40 @@ global.DataDownloader = require('./data-downloader.js');
 
 global.CommandParser = require('./command-parser.js');
 
+global.SecurityLog = require('./security-log.js');
+
 /* Commands */
 
-CommandParser.loadCommands();
+if (!AppOptions.testmode) CommandParser.loadCommands();
 
 /* Languages (translations) */
 
-Tools.loadTranslations();
+if (!AppOptions.testmode) Tools.loadTranslations();
 
 /* Features */
 
 global.Features = {};
 
-var featureList = fs.readdirSync('./features/');
+if (!AppOptions.testmode) {
+	var featureList = fs.readdirSync('./features/');
 
-featureList.forEach(function (feature) {
-	if (fs.existsSync('./features/' + feature + '/index.js')) {
-		try {
-			var f = require('./features/' + feature + '/index.js');
-			if (f.id) {
-				Features[f.id] = f;
-				ok("New feature: " + f.id + ' | ' + f.desc);
-			} else {
+	featureList.forEach(function (feature) {
+		if (fs.existsSync('./features/' + feature + '/index.js')) {
+			try {
+				var f = require('./features/' + feature + '/index.js');
+				if (f.id) {
+					Features[f.id] = f;
+					ok("New feature: " + f.id + ' | ' + f.desc);
+				} else {
+					error("Failed to load feature: " + './features/' + feature);
+				}
+			} catch (e) {
+				errlog(e.stack);
 				error("Failed to load feature: " + './features/' + feature);
 			}
-		} catch (e) {
-			errlog(e.stack);
-			error("Failed to load feature: " + './features/' + feature);
 		}
-	}
-});
+	});
+}
 
 global.reloadFeatures = function () {
 	var featureList = fs.readdirSync('./features/');
@@ -95,7 +124,7 @@ global.reloadFeatures = function () {
 				if (f.id) {
 					if (Features[f.id] && typeof Features[f.id].destroy === "function") Features[f.id].destroy();
 					Features[f.id] = f;
-					Features[f.id].init();
+					if (typeof Features[f.id].init === "function") Features[f.id].init();
 				}
 			} catch (e) {
 				errlog(e.stack);
@@ -115,16 +144,24 @@ function botAfterConnect () {
 		joinByQueryRequest(Config.rooms);
 	} else {
 		var cmds = [];
+		var featureInitCmds;
 		for (var i = 0; i < Config.rooms.length; i++) {
 			cmds.push('|/join ' + Config.rooms[i]);
 		}
 		for (var i = 0; i < Config.initCmds.length; i++) {
 			cmds.push(Config.initCmds[i]);
 		}
+		for (var f in Features) {
+			if (typeof Features[f].getInitCmds === "function") {
+				try {
+					featureInitCmds = Features[f].getInitCmds();
+					if (featureInitCmds) cmds = cmds.concat(featureInitCmds);
+				} catch (e) {
+					errlog(e.stack);
+				}
+			}
+		}
 		Bot.send(cmds, 2000);
-	}
-	if (!Config.disableDownload) {
-		DataDownloader.download();
 	}
 }
 
@@ -134,18 +171,30 @@ function joinByQueryRequest(target) {
 	} else {
 		error('Config.rooms, as a string must be "official", "public" or "all"');
 		var cmds = [];
+		var featureInitCmds;
 		for (var i = 0; i < Config.initCmds.length; i++) {
 			cmds.push(Config.initCmds[i]);
+		}
+		for (var f in Features) {
+			if (typeof Features[f].getInitCmds === "function") {
+				try {
+					featureInitCmds = Features[f].getInitCmds();
+					if (featureInitCmds) cmds = cmds.concat(featureInitCmds);
+				} catch (e) {
+					errlog(e.stack);
+				}
+			}
 		}
 		Bot.send(cmds, 2000);
 		return;
 	}
-	Bot.on('queryresponse', function (data) {
+	var qParser = function (data) {
 		data = data.split('|');
 		if (data[0] === 'rooms') {
 			data.splice(0, 1);
 			var str = data.join('|');
 			var cmds = [];
+			var featureInitCmds;
 			try {
 				var rooms = JSON.parse(str);
 				var offRooms = [], publicRooms = [];
@@ -169,10 +218,21 @@ function joinByQueryRequest(target) {
 			for (var i = 0; i < Config.initCmds.length; i++) {
 				cmds.push(Config.initCmds[i]);
 			}
+			for (var f in Features) {
+				if (typeof Features[f].getInitCmds === "function") {
+					try {
+						featureInitCmds = Features[f].getInitCmds();
+						if (featureInitCmds) cmds = cmds.concat(featureInitCmds);
+					} catch (e) {
+						errlog(e.stack);
+					}
+				}
+			}
 			Bot.send(cmds, 2000);
-			Bot.on('queryresponse', function () {return;});
+			Bot.removeListener('queryresponse', qParser);
 		}
-	});
+	};
+	Bot.on('queryresponse', qParser);
 	Bot.send('|/cmd rooms');
 }
 
@@ -197,13 +257,15 @@ global.Bot = new PSClient(Config.server, Config.port, opts);
 var connected = false;
 Bot.on('connect', function (con) {
 	ok('Connected to server ' + Config.serverid + ' (' + Tools.getDateString() + ')');
+	SecurityLog.log('Connected to server ' + Bot.opts.server + ":" + Bot.opts.port + " (" + Bot.opts.serverid + ")");
 	connected = true;
 	for (var f in Features) {
 		try {
-			Features[f].init();
+			if (typeof Features[f].init === "function") Features[f].init();
 		} catch (e) {
 			errlog(e.stack);
 			error("Feature Crash: " + f + " | " + sys.inspect(e));
+			SecurityLog.log("FEATURE CRASH: " + f + " | " + e.message + "\n" + e.stack);
 		}
 	}
 });
@@ -247,6 +309,9 @@ Bot.on('formats', function (formats) {
 		}
 	}
 	ok('Received battle formats. Total: ' + formatsArr.length);
+	if (!Config.disableDownload) {
+		DataDownloader.download();
+	}
 });
 
 Bot.on('challstr', function (challstr) {
@@ -292,6 +357,7 @@ Bot.on('renamefailure', function (e) {
 
 Bot.on('rename', function (name, named) {
 	monitor('Bot nickname has changed: ' + (named ? name.green : name.yellow) + (named ? '' : ' [guest]'));
+	SecurityLog.log('Bot nickname has changed: ' + name + (named ? '' : ' [guest]'));
 	if (named) {
 		if (!Config.nick) {
 			if (Bot.roomcount > 0) return; // Namechange, not initial login
@@ -309,6 +375,7 @@ Bot.on('rename', function (name, named) {
 var reconnectTimer = null;
 var reconnecting = false;
 Bot.on('disconnect', function (e) {
+	if (connected) SecurityLog.log('Disconnected from server');
 	connected = false;
 	if (Config.autoReconnectDelay) {
 		if (reconnecting) return;
@@ -329,7 +396,7 @@ Bot.on('disconnect', function (e) {
 
 Bot.on('chat', function (room, timeOff, by, msg) {
 	CommandParser.parse(room, by, msg);
-	Settings.reportSeen(by, room, 'c', []);
+	Settings.userManager.reportChat(by, room);
 });
 
 Bot.on('pm', function (by, msg) {
@@ -337,15 +404,15 @@ Bot.on('pm', function (by, msg) {
 });
 
 Bot.on('userjoin', function (room, by) {
-	Settings.reportSeen(by, room, 'j', []);
+	Settings.userManager.reportJoin(by, room);
 });
 
 Bot.on('userleave', function (room, by) {
-	Settings.reportSeen(by, room, 'l', []);
+	Settings.userManager.reportLeave(by, room);
 });
 
 Bot.on('userrename', function (room, old, by) {
-	Settings.reportSeen(old, room, 'n', [by]);
+	Settings.userManager.reportRename(old, by, room);
 });
 
 /* Features */
@@ -353,14 +420,13 @@ Bot.on('userrename', function (room, old, by) {
 Bot.on('line', function (room, message, isIntro, spl) {
 	for (var f in Features) {
 		try {
-			Features[f].parse(room, message, isIntro, spl);
+			if (typeof Features[f].parse === "function") Features[f].parse(room, message, isIntro, spl);
 		} catch (e) {
 			errlog(e.stack);
 			error("Feature Crash: " + f + " | " + sys.inspect(e));
+			SecurityLog.log("FEATURE CRASH: " + f + " | " + e.message + "\n" + e.stack);
 			Features[f].disabled = true;
-			Features[f].parse = function () {
-				return true;
-			};
+			Features[f].parse = null;
 			info("Feature " + f + " has been disabled");
 		}
 	}
@@ -369,17 +435,20 @@ Bot.on('line', function (room, message, isIntro, spl) {
 /* Info and debug */
 
 Bot.on('joinroom', function (room, type) {
+	SecurityLog.log("Joined room: " + room + " [" + type + "]");
 	if (type === 'chat') monitor('Joined room ' + room, 'room', 'join');
 	else if (type === 'battle') monitor('Joined battle ' + room, 'battle', 'join');
 	else monitor('Joined room ' + room + ' [' + Bot.rooms[room].type + ']', 'room', 'join');
 });
 
 Bot.on('joinfailure', function (room, e, moreInfo) {
+	SecurityLog.log('Could not join ' + room + ': [' + e + '] ' + moreInfo);
 	monitor('Could not join ' + room + ': [' + e + '] ' + moreInfo, 'room', 'error');
 });
 
 Bot.on('leaveroom', function (room) {
 	var roomType = Bot.rooms[room] ? Bot.rooms[room].type : 'chat';
+	SecurityLog.log("Left room: " + room + " [" + roomType + "]");
 	if (roomType === 'chat') monitor('Left room ' + room, 'room', 'leave');
 	else if (roomType === 'battle') monitor('Left battle ' + room, 'battle', 'leave');
 	else monitor('Left room ' + room + ' [' + Bot.rooms[room].type + ']', 'room', 'leave');
@@ -423,22 +492,27 @@ var checkSystem = function () {
 		switch (issue) {
 			case 'connect':
 				monitor("Monitor failed: Connection issue. Reconnecting");
+				SecurityLog.log("Monitor failed: Connection issue. Reconnecting");
 				Bot.connect();
 				break;
 			case 'login':
 				monitor("Monitor failed: Login issue. Loging in a random username");
+				SecurityLog.log("Monitor failed: Login issue. Loging in a random username");
 				Config.nick = '';
 				Bot.rename('Bot ' + Tools.generateRandomNick(10));
 				break;
 		}
 	}
 };
-var sysChecker = setInterval(checkSystem, 60 * 60 * 1000);
-ok('Global monitor is working');
+if (!AppOptions.testmode) {
+	var sysChecker = setInterval(checkSystem, 60 * 60 * 1000);
+	ok('Global monitor is working');
+}
 
 //CrashGuard
-if (Config.crashguard) {
+if (!AppOptions.testmode && Config.crashguard) {
 	process.on('uncaughtException', function (err) {
+		SecurityLog.log("CRASH: " + err.message + "\n" + err.stack);
 		error(("" + err.message).red);
 		errlog(("" + err.stack).red);
 	});
@@ -446,14 +520,18 @@ if (Config.crashguard) {
 }
 
 //WatchConfig
-if (Config.watchconfig) {
-	Tools.watchFile('./config.js', function (curr, prev) {
+if (!AppOptions.testmode && Config.watchconfig) {
+	Tools.watchFile(AppOptions.config, function (curr, prev) {
 		if (curr.mtime <= prev.mtime) return;
 		try {
-			reloadConfig();
-			info('config.js reloaded');
+			Tools.uncacheTree(AppOptions.config);
+			global.Config = require(AppOptions.config);
+			Tools.checkConfig();
+			Settings.applyConfig();
+			CommandParser.reloadTokens();
+			info(AppOptions.config + ' reloaded');
 		} catch (e) {
-			error('could not reload config.js');
+			error('could not reload ' + AppOptions.config + " | " + e.message);
 			errlog(e.stack);
 		}
 	});
@@ -463,6 +541,10 @@ if (Config.watchconfig) {
 console.log("\n-----------------------------------------------\n".yellow);
 
 //Connection
-info('Connecting to server ' + Config.server + ':' + Config.port);
-Bot.connect();
-Bot.startConnectionTimeOut();
+if (AppOptions.testmode) {
+	ok("Test mode enabled");
+} else {
+	info('Connecting to server ' + Config.server + ':' + Config.port);
+	Bot.connect();
+	Bot.startConnectionTimeOut();
+}

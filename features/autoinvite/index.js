@@ -94,7 +94,7 @@ function getNextRoom () {
 		if (parserArray.length) debug('Room auth received and parsed from: ' + parserArray.join(", "));
 		return;
 	}
-	Bot.on('popup', function (popup) {
+	var popupParser = function (popup) {
 		if (toId(popup.substr(0, 4)) === 'room') {
 			var auth = {};
 			var _message = popup.replace("Moderators", ":");
@@ -112,10 +112,11 @@ function getNextRoom () {
 			}
 			roomAuth[parserArray[parserIndex]] = auth;
 			if (Config.debug && Config.debug.debug) debug("Roomauth from " + parserArray[parserIndex] + " = " + JSON.stringify(auth));
-			Bot.on('popup', null);
+			Bot.removeListener('popup', popupParser);
 			setTimeout(getNextRoom, 1500);
 		}
-	});
+	};
+	Bot.on('popup', popupParser);
 	Bot.say(parserArray[parserIndex], '/roomauth');
 }
 
@@ -142,7 +143,7 @@ exports.parse = function (room, message, isIntro, spl) {
 		case 'J': case 'j':
 			parseJoin(room, spl[1]);
 			break;
-		case 'N':
+		case 'n': case 'N':
 			parseRename(room, spl[1], spl[2]);
 			break;
 	}
