@@ -12,8 +12,8 @@ exports.commands = {
 	},
 	
 	suspect: function () {
-	if (!this.isRanked('+')) return false;
-		this.reply(this.trad('suspect') + " (http://www.smogon.com/forums/threads/lc-suspect-beez-in-the-trap.3547829/)", 'info');
+		if (!this.isRanked('+')) return false;
+		this.reply('Little Cup is currently suspecting Drifloon! Check it out here:' + " (http://www.smogon.com/forums/threads/lc-suspect-black-balloon.3575912/)", 'info');
 	},
 	
 	viability: function () {
@@ -29,11 +29,6 @@ exports.commands = {
 	timburr: function () {
 		if (!this.isRanked('+')) return false;
 		this.reply(this.trad('timburr') + " (http://www.smogon.com/forums/threads/metagame-discussion-thread.3505710/page-55#post-6586231)", 'info');
-	},
-	
-	resource: function () {
-		if (!this.isRanked('+')) return false;
-		this.reply(this.trad('resource') + " (http://www.smogon.com/forums/threads/little-cup-resource-thread.3548652/)", 'info');
 	},
 
 	git: 'github',
@@ -100,7 +95,8 @@ exports.commands = {
 		this.restrictReply(text, 'info');
 	},
 	
-	 insult: function (target, room, user) {
+	
+	   insult: function (target, room, user) {
 		if (!this.isRanked('%')) return false;
         if (this.roomType !== 'chat' || !this.can('insult')) return;
         if (!target) return;
@@ -143,6 +139,26 @@ exports.commands = {
             
         var returnInfo = [arrayA[Math.floor(Math.random() * 10)], arrayB[Math.floor(Math.random() * 10)], arrayC[Math.floor(Math.random() * 10)]];
         this.reply('Oh, its ' + target + ', ' + returnInfo[0] + '. ' + returnInfo[1] + ' you ' + returnInfo[2] + '.');
+    },
+    	
+    	flirt: function (target, room, user) {
+		if (!this.isRanked('%')) return false;
+        if (this.roomType !== 'chat' || !this.can('flirt')) return;
+        if (!target) return;
+        
+        var lines = [
+       		'you are hotter than the bottom of my laptop.',
+       		'if i could rearrange the alphabet, i\'d put my dick in your butt.',
+       		'my mom thinks i\'m gay, can you help me prove her wrong?',
+       		'there are 8 planets in the universe, but only 7 after I destroy Uranus',
+       		'you know why I am like a squirrel? Cause I want to bury my nuts in you.',
+       		'I like every bone in your body, especially mine.',
+       		'I`m no weatherman, but you can expect a few inches tonight.',
+       		'You make me want to calibrate my joystick without the latest drivers',
+       		'is that a keg in your pants? Because I’d love to tap that ass'
+        	];
+        var line = Math.floor(Math.random() * lines.length);
+        this.reply('Hey ' + target + ', ' + lines[line]);
     },
 
 	seen: function (arg, by, room, cmd) {
