@@ -167,7 +167,7 @@ exports.commands = {
 		if (arg.length > 1) {
 			dab += ' on ' + by;	
 		}
-		this.reply('/me ' + dab);
+		this.reply('/me ' + arg);
     	},
 
 	seen: function (arg, by, room, cmd) {
