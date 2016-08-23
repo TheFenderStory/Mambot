@@ -96,10 +96,10 @@ exports.commands = {
 	},
 	
 	
-	   insult: function (target, room, user) {
+	insult: function (target, room, user) {
 		if (!this.isRanked('%')) return false;
-        if (this.roomType !== 'chat' || !this.can('insult')) return;
-        if (!target) return;
+        	if (this.roomType !== 'chat' || !this.can('insult')) return;
+        	if (!target) return;
         
         var arrayA = [
             'the dude who got shit on by Pawniard on ladder and changed his Timburr to Spritzee',
@@ -141,8 +141,8 @@ exports.commands = {
         this.reply('Oh, its ' + target + ', ' + returnInfo[0] + '. ' + returnInfo[1] + ' you ' + returnInfo[2] + '.');
     },
     	
-    	flirt: function (target, room, user) {
-		if (!this.isRanked('%')) return false;
+    flirt: function (target, room, user) {
+	if (!this.isRanked('%')) return false;
         if (this.roomType !== 'chat' || !this.can('flirt')) return;
         if (!target) return;
         
@@ -160,6 +160,15 @@ exports.commands = {
         var line = Math.floor(Math.random() * lines.length);
         this.reply('Hey ' + target + ', ' + lines[line]);
     },
+    
+    	dab: function (arg, by, room, cmd) { // this is for you, tcr
+    		if (!this.isRanked('%')) return false;
+		var dab = 'dabs';
+		if (arg.length > 1) {
+			dab += ' on ' + by;	
+		}
+		this.reply('/me ' + dab);
+    	},
 
 	seen: function (arg, by, room, cmd) {
 		var text = '';
