@@ -165,9 +165,9 @@ exports.commands = {
     		if (!this.isRanked('%')) return false;
 		var dab = 'dabs';
 		if (arg.length > 1) {
-			dab += ' on ' + by;	
+			dab += ' on ' + arg;	
 		}
-		this.reply('/me ' + arg);
+		this.reply('/me ' + dab);
     	},
 
 	seen: function (arg, by, room, cmd) {
